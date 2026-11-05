@@ -1,88 +1,175 @@
 
+
 import streamlit as st
 import pandas as pd
 import joblib
 
+# --------------------------------
+# PAGE CONFIGURATION
+# --------------------------------
+
 st.set_page_config(
-    page_title="Smart Traffic Management",
+    page_title="Warangal Smart Traffic Management",
     page_icon="🚦",
     layout="wide"
 )
 
-# Load trained model and encoders
+# --------------------------------
+# LOAD MACHINE LEARNING MODEL
+# --------------------------------
+
 @st.cache_resource
 def load_model():
     return joblib.load("traffic_model.pkl")
 
+try:
+    bundle = load_model()
 
-bundle = load_model()
+    model = bundle["model"]
+    preprocessor = bundle["preprocessor"]
+    label_encoder = bundle["label_encoder"]
 
-st.write("Model bundle keys:", list(bundle.keys()))
-# Website title
+except Exception as e:
+    st.error("Unable to load the traffic prediction model.")
+    st.exception(e)
+    st.stop()
+
+
+# --------------------------------
+# TRAFFIC LOCATIONS
+# --------------------------------
+
+locations = {
+    "Warangal": [
+        "Warangal Chowrasta",
+        "MGM Hospital",
+        "Enumamula",
+        "Mulugu Road",
+        "Naimnagar",
+        "Pochamma Maidan",
+        "Fort Warangal"
+    ],
+
+    "Hanamkonda": [
+        "Hanamkonda Chowrasta",
+        "Nakkalagutta",
+        "Kakatiya University",
+        "Subedari",
+        "Public Garden",
+        "Adalath"
+    ],
+
+    "Kazipet": [
+        "Kazipet Railway Station",
+        "Fathimanagar",
+        "Vishnupuri",
+        "Madikonda",
+        "Ayodhya Puram",
+        "Siddipet Road",
+        "Railway Quarters"
+    ]
+}
+
+
+# --------------------------------
+# WEBSITE HEADER
+# --------------------------------
+
 st.title("🚦 Smart Traffic Management System")
 st.subheader("Warangal Tri-Cities")
 
-# Sidebar navigation
-page = st.sidebar.selectbox(
-    "Select Page",
-    ["Home", "Traffic Prediction", "Dashboard", "About"]
+st.write(
+    "An AI-based system for predicting traffic "
+    "conditions in Warangal, Hanamkonda and Kazipet."
 )
 
-# Home page
+# --------------------------------
+# SIDEBAR
+# --------------------------------
+
+page = st.sidebar.selectbox(
+    "Select Page",
+    [
+        "Home",
+        "Traffic Prediction",
+        "Dashboard",
+        "About"
+    ]
+)
+
+
+# --------------------------------
+# HOME PAGE
+# --------------------------------
+
 if page == "Home":
-    st.header("Welcome to Our Smart Traffic Management System!")
-    st.write("AI-Based Traffic Prediction System")
-    st.write("Locations: Warangal, Hanamkonda and Kazipet")
-# Traffic prediction page
+
+    st.header("Welcome to Smart Traffic Management!")
+
+    st.write(
+        "Our project uses Machine Learning to predict "
+        "traffic conditions and help understand traffic "
+        "patterns across the Warangal Tri-Cities."
+    )
+
+    st.subheader("Areas Covered")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("City 1", "Warangal")
+    col2.metric("City 2", "Hanamkonda")
+    col3.metric("City 3", "Kazipet")
+
+    st.subheader("Key Features")
+
+    st.markdown("""
+    - Traffic condition prediction
+    - Selection of traffic locations
+    - Vehicle count analysis
+    - Weather-based input
+    - Traffic distribution dashboard
+    - Machine Learning classification
+    """)
+
+    st.info(
+        "Select Traffic Prediction from the sidebar "
+        "to test the prediction system."
+    )
+
+
+# --------------------------------
+# TRAFFIC PREDICTION PAGE
+# --------------------------------
+
 elif page == "Traffic Prediction":
-    st.header("Predict Traffic")
+
+    st.header("Traffic Condition Prediction")
 
     city = st.selectbox(
         "Select City",
-        ["Warangal", "Hanamkonda", "Kazipet"]
+        list(locations.keys())
     )
 
-    locations = {
-        "Warangal": [
-            "Warangal Chowrasta",
-            "MGM Hospital",
-            "Enumamula",
-            "Mulugu Road",
-            "Naimnagar",
-            "Pochamma Maidan",
-            "Fort Warangal"
-        ],
-        "Hanamkonda": [
-            "Hanamkonda Chowrasta",
-            "Nakkalagutta",
-            "Kakatiya University",
-            "Subedari",
-            "Public Garden",
-            "Adalath"
-        ],
-        "Kazipet": [
-            "Kazipet Railway Station",
-            "Fathimanagar",
-            "Vishnupuri",
-            "Madikonda",
-            "Ayodhya Puram",
-            "Siddipet Road",
-            "Railway Quarters"
-        ]
-    }
-
     location = st.selectbox(
-        "Select Location",
+        "Select Traffic Location",
         locations[city]
     )
 
-    hour = st.slider("Hour", 0, 23, 9)
+    hour = st.slider(
+        "Select Hour",
+        0, 23, 9
+    )
 
     day = st.selectbox(
-        "Day",
+        "Select Day",
         [
-            "Monday", "Tuesday", "Wednesday",
-            "Thursday", "Friday", "Saturday", "Sunday"
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
         ]
     )
 
@@ -106,21 +193,54 @@ elif page == "Traffic Prediction":
     if st.button("Predict Traffic"):
 
         try:
-            data = pd.DataFrame([{
-                "City": le_city.transform([city])[0],
-                "Location": le_location.transform([location])[0],
-                "Hour": hour,
-                "Day": le_day.transform([day])[0],
-                "Vehicle_Count": vehicles,
-                "Road_Capacity": capacity,
-                "Weather": le_weather.transform([weather])[0]
-            }])
+            # Read the input columns expected by the model
+            expected_columns = list(
+                preprocessor.feature_names_in_
+            )
 
-            data = data[columns]
+            # Build input according to the saved preprocessor
+            input_values = {}
 
-            prediction = model.predict(data)
+            for column in expected_columns:
 
-            result = le_traffic.inverse_transform(
+                if column == "City":
+                    input_values[column] = city
+
+                elif column == "Location":
+                    input_values[column] = location
+
+                elif column == "Hour":
+                    input_values[column] = hour
+
+                elif column == "Day":
+                    input_values[column] = day
+
+                elif column == "Vehicle_Count":
+                    input_values[column] = vehicles
+
+                elif column == "Road_Capacity":
+                    input_values[column] = capacity
+
+                elif column == "Weather":
+                    input_values[column] = weather
+
+                else:
+                    raise ValueError(
+                        f"Unknown model input column: {column}"
+                    )
+
+            data = pd.DataFrame(
+                [input_values],
+                columns=expected_columns
+            )
+
+            # Transform input
+            encoded_data = preprocessor.transform(data)
+
+            # Predict traffic
+            prediction = model.predict(encoded_data)
+
+            result = label_encoder.inverse_transform(
                 prediction
             )[0]
 
@@ -132,71 +252,115 @@ elif page == "Traffic Prediction":
             elif result == "Medium":
                 st.warning("🟠 MEDIUM TRAFFIC")
 
-            else:
+            elif result == "Low":
                 st.success("🟢 LOW TRAFFIC")
+
+            else:
+                st.write("Predicted Traffic:", result)
 
             st.write("City:", city)
             st.write("Location:", location)
 
             st.caption(
-                "Predictions are based on simulated training data."
+                "Predictions are based on simulated training data, "
+                "not live traffic measurements."
             )
 
         except Exception as e:
-            st.error(f"Prediction error: {e}")
+            st.error("Unable to predict traffic.")
+            st.write("Error details:", str(e))
 
-# Dashboard page
+
+# --------------------------------
+# DASHBOARD PAGE
+# --------------------------------
+
 elif page == "Dashboard":
+
     st.header("Traffic Dashboard")
 
-    df = pd.read_csv("warangal_traffic_dataset.csv")
+    try:
+        df = pd.read_csv(
+            "warangal_traffic_dataset.csv"
+        )
 
-    st.metric("Total Records", len(df))
+        st.metric(
+            "Total Traffic Records",
+            len(df)
+        )
 
-    st.subheader("Traffic Distribution")
+        st.subheader("Traffic Condition Distribution")
 
-    st.bar_chart(
-        df["Traffic_Condition"].value_counts()
-    )
+        traffic_counts = (
+            df["Traffic_Condition"].value_counts()
+        )
 
-    st.subheader("Location-wise Traffic")
+        st.bar_chart(traffic_counts)
 
-    st.bar_chart(
-        pd.crosstab(
+        st.subheader("Location-wise Traffic")
+
+        location_data = pd.crosstab(
             df["Location"],
             df["Traffic_Condition"]
         )
-    )
 
-    st.dataframe(
-        df.head(20),
-        use_container_width=True
-    )
+        st.bar_chart(location_data)
 
-# About page
+        st.subheader("Dataset Preview")
+
+        st.dataframe(
+            df.head(20),
+            use_container_width=True
+        )
+
+    except Exception as e:
+        st.error("Unable to load the traffic dataset.")
+        st.write(str(e))
+
+
+# --------------------------------
+# ABOUT PAGE
+# --------------------------------
+
 elif page == "About":
+
     st.header("About Our Project")
 
     st.write("""
-    Project: AI-Based Smart Traffic Management System
+    Project Title:
+    AI-Based Smart Traffic Management System
 
-    Cities:
+    Areas Covered:
     - Warangal
     - Hanamkonda
     - Kazipet
 
-    Algorithm: Random Forest Classifier
+    Machine Learning Algorithm:
+    Random Forest Classifier
 
-    Predictions:
+    Traffic Categories:
     - Low Traffic
     - Medium Traffic
     - High Traffic
 
-    Dataset: Simulated traffic data
+    Dataset:
+    Simulated Traffic Dataset
     """)
+
+    st.subheader("Project Objective")
+
+    st.write(
+        "The objective is to predict traffic conditions "
+        "at selected locations using Machine Learning."
+    )
+
+
+# --------------------------------
+# FOOTER
+# --------------------------------
 
 st.divider()
 
 st.caption(
-    "Smart Traffic Management System | ML Project"
+    "Smart Traffic Management System | Machine Learning Project"
 )
