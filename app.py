@@ -36,10 +36,9 @@ page = st.sidebar.selectbox(
 
 # Home page
 if page == "Home":
-    st.header("Welcome!")
+    st.header("Welcome to Our Smart Traffic Management System!")
     st.write("AI-Based Traffic Prediction System")
     st.write("Locations: Warangal, Hanamkonda and Kazipet")
-
 # Traffic prediction page
 elif page == "Traffic Prediction":
     st.header("Predict Traffic")
