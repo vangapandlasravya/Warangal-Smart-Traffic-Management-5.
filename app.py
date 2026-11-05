@@ -14,16 +14,10 @@ st.set_page_config(
 def load_model():
     return joblib.load("traffic_model.pkl")
 
+
 bundle = load_model()
 
-model = bundle["model"]
-le_city = bundle["le_city"]
-le_location = bundle["le_location"]
-le_day = bundle["le_day"]
-le_weather = bundle["le_weather"]
-le_traffic = bundle["le_traffic"]
-columns = bundle["columns"]
-
+st.write("Model bundle keys:", list(bundle.keys()))
 # Website title
 st.title("🚦 Smart Traffic Management System")
 st.subheader("Warangal Tri-Cities")
